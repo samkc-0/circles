@@ -40,16 +40,21 @@ export function getToneNote(
     octave: 4,
     tonality: "major",
   }
-): (degree: number) => string {
+): [(degree: number) => string, (note: string) => number] {
   const normalizedKey = normalizeKey(tonic);
   const keyIndex = chromaticScale.indexOf(normalizedKey);
   if (keyIndex === -1) {
     throw new Error("Invalid key.");
   }
-
   const intervals = tonality === "major" ? majorIntervals : minorIntervals;
+  const noteToDegree = new Map<string, number>();
+  for (let i = 0; i < intervals.length; i++) {
+    const noteIndex = (keyIndex + intervals[i]) % 12;
+    const note = chromaticScale[noteIndex];
+    noteToDegree.set(note, i + 1);
+  }
 
-  return function getDegreeWithinContext(degree: number) {
+  function getNote(degree: number): string {
     const semitoneOffset = intervals[(degree - 1) % 7];
     const totalSemitones = keyIndex + semitoneOffset;
     const extraOctave =
@@ -57,5 +62,14 @@ export function getToneNote(
     const noteIndex = totalSemitones % 12;
     const note = chromaticScale[noteIndex];
     return `${note}${octave + extraOctave}`;
-  };
+  }
+  function getDegree(note: string): number {
+    const noteWithoutOctave = String(note).replace(/\d+/g, "");
+    const degree = noteToDegree.get(noteWithoutOctave);
+    if (degree === undefined) {
+      throw new Error(`Could not find degree for note ${note}`);
+    }
+    return degree;
+  }
+  return [getNote, getDegree];
 }
